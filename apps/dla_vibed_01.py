@@ -23,7 +23,7 @@ def _():
     return anywidget, traitlets
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(anywidget, traitlets):
     class DLAWidget(anywidget.AnyWidget):
         _esm = """
@@ -318,15 +318,11 @@ def _(anywidget, traitlets):
 @app.cell
 def _():
     mo.md("""
-    # Diffusion-Limited Aggregation Fractal
+    # Diffusion-limited aggregation (DLA)
 
-    A beautiful visualization of DLA, where particles perform random walks and stick when they touch the growing cluster.
-    The fractal exhibits characteristic branching patterns found in nature: lightning, coral growth, crystal formation, and more.
+    Diffusion-Limited aggregation is a simple model for how branching, fractal patterns form when particles move randomly and stick together on contact. It appears in nature whenever growth is limited by diffusion... this process helps shape lightning paths, mineral dendrites, soot, and many types of crystal growth.
 
-    **Controls:**
-    - Click "Start Growth" to begin the simulation
-    - Watch as particles random-walk and freeze on contact
-    - Color gradient shows distance from center (purple → cyan → pink)
+    This simulation shows how such geometry can emergy from nothing more than random motion and sticking -- how complex structure can arise from very simple rules.
     """)
     return
 
@@ -345,6 +341,30 @@ def _(dla_widget):
     - Particles in cluster: {dla_widget.value.get("particle_count", 1)}
     - Running: {dla_widget.value.get("is_running", False)}
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## A simple model
+
+    Imagine tiny particles drifting randomly through space. When one touches a growing cluster, it sticks and becomes part of the structure. Over time, this produces branching shapes with long arms and empty gaps—patterns that are “fractal,” meaning they look similar at different scales. The key idea is that growth is limited by diffusion: particles reach the outer tips of the cluster more easily than the interior, so those tips grow faster and keep extending outward.
+
+
+    ## Why did I simulate this?
+
+    DLA is one of the simplest examples of how complex structures can arise without a blueprint. With only randomness and a basic sticking rule, you get patterns that resemble coral, trees, or river networks. This is satisfying to watch.
+
+    I was first introduced to DLA in high school -- or perhaps it was early college days -- when I was reading James Gleick's "Chaos". My friend Arian and I wrote simple programs to recreate this algorithm (and several others, too). Through the years we've tried variations and experimented with user-controlled knobs, to make the visualization more compelling.
+
+    Now it's turned into sort-of "hello world" code, written in many languages, platforms, styles.
+    """)
+    return
+
+
+@app.cell
+def _():
     return
 
 
