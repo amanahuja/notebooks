@@ -1,0 +1,186 @@
+name: Deploy Marimo Notebooks to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**'
+      - 'notebooks/**'
+      - '.github/workflows/deploy-dla.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      
+      - name: Install marimo
+        run: uv tool install marimo
+      
+      - name: Export readonly apps
+        run: |
+          mkdir -p dist
+          if [ -d "apps" ] && [ "$(ls -A apps/*.py 2>/dev/null)" ]; then
+            for notebook in apps/*.py; do
+              if [ -f "$notebook" ]; then
+                filename=$(basename "$notebook" .py)
+                echo "Exporting $filename as readonly app..."
+                uvx marimo export html-wasm "$notebook" -o "dist/$filename" --mode run
+              fi
+            done
+          fi
+      
+      - name: Export editable notebooks
+        run: |
+          if [ -d "notebooks" ] && [ "$(ls -A notebooks/*.py 2>/dev/null)" ]; then
+            for notebook in notebooks/*.py; do
+              if [ -f "$notebook" ]; then
+                filename=$(basename "$notebook" .py)
+                echo "Exporting $filename as editable notebook..."
+                uvx marimo export html-wasm "$notebook" -o "dist/$filename" --mode edit
+              fi
+            done
+          fi
+      
+      - name: Create index page
+        run: |
+          cat > dist/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Marimo Notebooks</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                max-width: 800px;
+                margin: 40px auto;
+                padding: 20px;
+                line-height: 1.6;
+              }
+              h1 { color: #333; }
+              .section { margin: 30px 0; }
+              .section h2 { color: #666; font-size: 1.2em; }
+              ul { list-style: none; padding: 0; }
+              li { margin: 10px 0; }
+              a {
+                color: #667eea;
+                text-decoration: none;
+                padding: 8px 16px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                display: inline-block;
+                transition: all 0.15s;
+              }
+              a:hover {
+                border-color: #667eea;
+                background: #f9fafb;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>Marimo Notebooks</h1>
+            <div class="section">
+              <h2>Readonly Apps</h2>
+              <ul id="apps"></ul>
+            </div>
+            <div class="section">
+              <h2>Editable Notebooks</h2>
+              <ul id="notebooks"></ul>
+            </div>
+            <script>
+              const apps = [
+          EOF
+          
+          # Add apps
+          if [ -d "apps" ]; then
+            for notebook in apps/*.py; do
+              if [ -f "$notebook" ]; then
+                filename=$(basename "$notebook" .py)
+                echo "        '$filename'," >> dist/index.html
+              fi
+            done
+          fi
+          
+          cat >> dist/index.html << 'EOF'
+              ];
+              const notebooks = [
+          EOF
+          
+          # Add notebooks
+          if [ -d "notebooks" ]; then
+            for notebook in notebooks/*.py; do
+              if [ -f "$notebook" ]; then
+                filename=$(basename "$notebook" .py)
+                echo "        '$filename'," >> dist/index.html
+              fi
+            done
+          fi
+          
+          cat >> dist/index.html << 'EOF'
+              ];
+              
+              const appsList = document.getElementById('apps');
+              apps.forEach(name => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = name + '/index.html';
+                a.textContent = name.replace(/_/g, ' ');
+                li.appendChild(a);
+                appsList.appendChild(li);
+              });
+              
+              const notebooksList = document.getElementById('notebooks');
+              notebooks.forEach(name => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = name + '/index.html';
+                a.textContent = name.replace(/_/g, ' ');
+                li.appendChild(a);
+                notebooksList.appendChild(li);
+              });
+            </script>
+          </body>
+          </html>
+          EOF
+      
+      - name: Add .nojekyll file
+        run: touch dist/.nojekyll
+      
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
